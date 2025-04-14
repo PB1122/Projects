@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>3D-båt i Mapbox</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiZmVycnljaGF0IiwiYSI6ImNtOTVpajJxMTE2d2IybXM1emhuZW82ZmMifQ.0IbB7v9Mdkk3WM1f7UL2qA'; // 🔁 Byt ut mot din API-nyckel
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: [12.6045, 55.6833], // Valfri position (t.ex. över hav)
+      zoom: 16,
+      pitch: 60,
+      bearing: -20,
+      antialias: true
+    });
+
+    map.on('style.load', () => {
+      map.addLayer({
+        id: '3d-boat',
+        type: 'custom',
+        renderingMode: '3d',
+        onAdd: function (map, gl) {
+          this.scene = new THREE.Scene();
+          this.camera = new THREE.Camera();
+
+          this.renderer = new THREE.WebGLRenderer({
+            canvas: map.getCanvas(),
+            context: gl,
+            antialias: true
+          });
+          this.renderer.autoClear = false;
+
+          const loader = new THREE.GLTFLoader();
+          loader.load('boat.glb', (gltf) => {
+            this.model = gltf.scene;
+            this.model.scale.set(100, 100, 100); // 🔍 STORLEKEN PÅ BÅTEN
+            this.model.rotation.x = Math.PI / 2; // Rättar upp modellen
+            this.model.position.set(0, 0, 0.5); // Lyft lite över marken
+            this.scene.add(this.model);
+          });
+        },
+        render: function (gl, matrix) {
+          if (!this.model) return;
+
+          const rotationX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+          const transform = new THREE.Matrix4().fromArray(matrix);
+          const finalMatrix = new THREE.Matrix4().multiplyMatrices(transform, rotationX);
+
+          this.model.matrixAutoUpdate = false;
+          this.model.matrix = finalMatrix;
+
+          this.renderer.state.reset();
+          this.renderer.render(this.scene, this.camera);
+          map.triggerRepaint();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
